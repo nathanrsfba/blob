@@ -174,7 +174,7 @@ class BlobGroup( Blob, UserList ):
         self.dict = {}
         self.terminator = None
         
-    clearDict( self ):
+    def clearDict( self ):
         """Clear the dictionary lookup table."""
 
         self.dict = {}
