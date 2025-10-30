@@ -1,0 +1,9 @@
+"blob" is a very minimal file format, designed to store arbitrary binary data.
+
+It is not intended as a serialization format (such as BSON), which converts a
+fully-formed object into something writable. Rather, it's intended to save a
+stream of (mostly) raw binary data, whose structure is not known ahead of
+time.
+
+Included here is "blob.txt", which describes the format (such as it is), and
+"blob.py" which is a basic Python library for reading/writing Blob files
