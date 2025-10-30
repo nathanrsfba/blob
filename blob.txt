@@ -1,0 +1,66 @@
+"Blob" File "Specification" Version 0
+Nathan Roberts, 10/29/2025
+
+"blob" is a very minimal file format, designed to store arbitrary binary data.
+
+It is not intended as a serialization format (such as BSON), which converts a
+fully-formed object into something writable. Rather, it's intended to save a
+stream of (mostly) raw binary data, whose structure is not known ahead of
+time.
+
+As an example, it was created for RecordBot, which saves audio data in real
+time, in timestampped chunks.
+
+blob is a very 'freeform' format, which describes very little of the stored
+data's structure. Instead, it's a simple series of chunks, each having an ID
+describing what it is. It's up to the application to decide how to use these
+chunks.
+
+A blob consists of:
+ * A 4-byte ASCII signature describing the type of data the blob contains.
+   The meaning of an ID is application-specific.
+ * A 4-byte big-endian, two's complement integer describing the length (in
+   bytes) of the payload
+ * The payload itself, whose length in bytes is exactly the value of the
+   previous field
+
+There shall be nothing before or after a blob, aside from neighboring blobs.
+
+The actual format of a payload is application-specific, but several standard
+formats are recommended:
+
+ * A zero-length marker; the length is zero and the payload is nonexistent
+ * A 32-bit, big-endian integer, either signed or unsigned, depending on the
+   application.
+ * A boolean, represented as an integer (single-byte recommended) of value 0
+   for false, or 1 for true.
+ * A string, encoded as UTF-8, with no padding or termination bytes. The
+   payload's size field specifies the physical size of the encoded string, in
+   bytes.
+ * Raw binary data
+ * A group, consisting of a blob marking the beginning of the group, the
+   payload of which gives the number of elements in the group, as a standard
+   integer. The following elements will be considered part of the group.
+
+The following are recognized as not-entirely-standard formats for groups,
+merely because RecordBot uses something like them, as it was written before
+the concept of groups was envisioned:
+
+* A 'header', marking the start of the group, and a 'terminator', marking the
+  end of the group
+* A 'header', marking the start of the group, with no indication of the length
+  of the group. In this case, the group is expected to have a fixed length,
+  determined by the application.
+
+Note that nothing in the blob inherently specifies which (if any) of the above
+formats are in use in any given blob; it is up to the application (and
+designer) to decide what format is used for any given blob signature.
+
+The standard sets no requirements for the start or end of the file, but it is
+recommended to include a header as follows:
+
+* One blob, of type `BLOB`, as the first blob. If it contains a payload, the
+  payload indicates the version of the blob spec, as a standard integer.
+* One blob, with a signature specifying the type of file. Each application
+  should define its own (ideally unique) signature to identify files that
+  belong to it. Again, an optional payload may include a version.
