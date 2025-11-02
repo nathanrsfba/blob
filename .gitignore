@@ -1,0 +1,12 @@
+# Backup and editing garbage
+*~
+*.swp
+
+# Caches
+__pycache__
+
+# Test files
+*.drb
+*.blb
+test.*
+
