@@ -40,7 +40,9 @@ formats are recommended:
  * Raw binary data
  * A group, consisting of a blob marking the beginning of the group, the
    payload of which gives the number of elements in the group, as a standard
-   integer. The following elements will be considered part of the group.
+   integer. The following elements will be considered part of the group. In
+   the case of recursive groups, a group inside another group should count as
+   a single element in its container group.
 
 The following are recognized as not-entirely-standard formats for groups,
 merely because RecordBot uses something like them, as it was written before
