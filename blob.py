@@ -245,7 +245,6 @@ class BlobFile:
     (the key), the type of data it contains (the value) is given as a Python
     type:
 
-
     None: Zero-byte "marker".
     int: Two's complement, big-endian integer.
     bool: Boolean.
@@ -266,13 +265,63 @@ class BlobFile:
 
     A spec is only used when reading a file. When writing, the appropriate type
     is determined by the type of data passed to the Blob constructors.
+
+    A BlobFile may be created with a filetype; this is the 4-character ASCII
+    identifier identifying the file type in a "standard" blob header. On a
+    writable file, this will cause a standard header to be written; on a
+    readable file, this checks for the proper header and raises an exception if
+    it doesn't match.
+
+    Additionally, a version for the file header and the blob header may also be
+    specified. On a writable file, the header blobs will be given these
+    versions. On a readable file, an exception is raised if these versions are
+    less than what was read from the file (implying a newer and incompatible
+    file format)
+
+    If a filetype is specified, the BlobFile will contain the fields `header`
+    and `blobheader`, which will contain the blobs making up the header; they
+    will not be returned with a read().
     """
-    def __init__( self, fd, spec=None ):
+    def __init__( self, fd, spec=None,
+                 filetype=None, version=None, blobver=None ):
+        """Create a BlobFile reader or writer.
+
+        fd: File descriptor of open file
+        spec: The specification of the file (see class documentation)
+        """
+
         self.fd = fd
         if spec:
             self.spec = spec
         else:
             self.spec = {}
+
+        if fd.readable() and filetype:
+            blobheader = self.read()
+            if blobheader.sig != 'BLOB':
+                raise FileTypeError( 'Not a blob file' )
+            if (blobver is not None and blobheader.content
+                and blobheader.getAs( int ) < blobver):
+                raise VersionError( 'Old blob version' )
+            header = self.read()
+            if header.sig != filetype:
+                raise FileTypeError( 'Wrong file type' )
+            if (version is not None and header.content
+                and header.getAs( int ) > version):
+                raise VersionError( 'Old file version' )
+        elif fd.writable() and filetype:
+            blobheader = Blob( 'BLOB', blobver )
+            self.write( blobheader )
+            header = Blob( filetype, version )
+            self.write( header )
+        else:
+            blobheader = None
+            header = None
+
+        if blobheader and blobheader.content: blobheader.convert( int )
+        if header and header.content: header.convert( int )
+        self.blobheader = blobheader
+        self.header = header
 
     def __enter__( self ):
         return self
@@ -281,7 +330,8 @@ class BlobFile:
         self.fd.__exit__( type, value, traceback )
 
     @classmethod
-    def open( cls, path, mode='rb', spec=None ):
+    def open( cls, path, mode='rb', spec=None,
+             filetype=None, version=None, blobver=None ):
         """Open the given file and return a BlobFile object.
 
         path: Path to the file
@@ -294,7 +344,7 @@ class BlobFile:
         """
         fd = open( path, mode )
         fd.__enter__()
-        return cls( fd, spec )
+        return cls( fd, spec, filetype, version, blobver )
 
     def close( self ):
         """Close the file"""
@@ -365,4 +415,18 @@ class BlobFile:
         if next == None:
             raise StopIteration
         return next
+
+class VersionError( RuntimeError ):
+    """Raised when a file is an unrecognized version"""
+
+    def __init__( self, desc ):
+        super().__init__( desc )
+
+class FileTypeError( RuntimeError ):
+    """Raised when a file is not the specified type"""
+
+    def __init__( self, desc ):
+        super().__init__( desc )
+
+
 
